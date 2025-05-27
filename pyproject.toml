@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vllm_mxext"
+version = "0.1.0"
+description = "Python package for Vllm Nvext"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License", # Assuming MIT, can be changed
+    "Operating System :: OS Independent",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]  # look for packages in the current directory
+include = ["engine*", "entrypoints*", "hub*", "logging*", "lora*", "trtllm*", "utils*"] # include these packages and their subpackages
+
+[tool.setuptools]
+py-modules = ["envs", "logger", "__init__"] # include root-level .py files
