@@ -39,4 +39,3 @@ classifiers = [
 [tool.setuptools]
 # Minimalistic section for testing TOML parsing
 packages = ["vllm_mxext_placeholder_for_testing_parsing"]
-```
