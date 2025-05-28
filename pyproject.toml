@@ -4,19 +4,39 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vllm_mxext"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python package for Vllm Nvext"
 readme = "README.md"
 requires-python = ">=3.8"
+dependencies = [
+    "vllm",
+    "numpy",
+    "packaging",
+    "prometheus_client",
+    "tensorrt_llm",
+    "transformers",
+    "pydantic",
+    "uvloop",
+    "fastapi",
+    "starlette",
+    "typing_extensions",
+    "torch",
+    "pyyaml",
+    "nim_hub",
+    "nvidia-lora-conversions",
+    "minio",
+    "progress",
+    "requests",
+    "tqdm",
+    "modelscope"
+]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License", # Assuming MIT, can be changed
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]  # look for packages in the current directory
-include = ["engine*", "entrypoints*", "hub*", "logging*", "lora*", "trtllm*", "utils*"] # include these packages and their subpackages
-
 [tool.setuptools]
-py-modules = ["envs", "logger", "__init__"] # include root-level .py files
+# Minimalistic section for testing TOML parsing
+packages = ["vllm_mxext_placeholder_for_testing_parsing"]
+```
