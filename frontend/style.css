@@ -1,0 +1,80 @@
+body {
+    font-family: sans-serif;
+    margin: 0;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1em 0;
+    text-align: center;
+}
+
+main {
+    padding: 1em;
+    max-width: 1200px;
+    margin: auto;
+}
+
+h2, h3, h4 {
+    color: #333;
+}
+
+#controls, #dashboard {
+    background-color: #fff;
+    padding: 1em;
+    margin-bottom: 1em;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+#controls div {
+    margin-bottom: 0.5em;
+}
+
+label {
+    margin-right: 0.5em;
+}
+
+input[type="number"], select {
+    padding: 0.5em;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+.metric-dial-container {
+    border: 1px solid #eee;
+    padding: 1em;
+    margin: 0.5em;
+    display: inline-block; /* Or use flex/grid for better layout */
+    min-width: 150px;
+    text-align: center;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+}
+
+.dial {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #007bff; /* Example color */
+    padding: 0.5em;
+    /* Basic representation of a dial, actual charting lib will replace this */
+    border: 2px solid #007bff;
+    border-radius: 50%;
+    width: 100px; /* Adjust as needed */
+    height: 100px; /* Adjust as needed */
+    line-height: 100px; /* Vertically center text */
+    margin: auto; /* Center the dial */
+}
+
+footer {
+    text-align: center;
+    padding: 1em 0;
+    background-color: #333;
+    color: #fff;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+}

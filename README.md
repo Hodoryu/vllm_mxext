@@ -14,6 +14,7 @@ Vllm Nvext (packaged as `vllm_mxext`) is an advanced Python-based inference serv
 *   **Hardware-Aware Configuration:** Adapts settings based on detected NVIDIA GPU hardware.
 *   **Metrics and Monitoring:** Includes Prometheus-compatible metrics for observing server performance.
 *   **Configurable Logging:** Flexible logging system with support for JSONL format and environment variable controls.
+*   **Web-based Metrics Monitoring UI:** Provides a dashboard to visualize real-time and historical performance metrics.
 
 ## Dependencies
 
@@ -112,6 +113,67 @@ The `TRTLLM` class in `entrypoints/nvllm.py` can be used for direct programmatic
 # results = engine.generate(prompts=["My prompt"])
 # print(results)
 ```
+
+## Metrics Monitoring UI
+
+This project includes a web-based user interface to monitor key performance metrics of the vLLM Nvext server.
+
+### Overview
+
+The Metrics Monitoring UI provides:
+*   A real-time view of operational metrics like the number of running requests and GPU cache utilization.
+*   A historical view of aggregated metrics, such as average end-to-end request latency, over different time windows.
+*   User controls to adjust the data refresh frequency and the time period for historical data analysis.
+
+### Components
+
+The UI and its data pipeline consist of the following new components:
+
+*   **`frontend/`**: This directory contains the static web files (HTML, CSS, JavaScript) that constitute the user interface.
+*   **`metrics_db.py`**: A Python module that manages an SQLite database (`metrics.db`) located at the root of the project. This database stores historical time-series data of various metrics.
+*   **`metrics_collector.py`**: A standalone Python script that periodically fetches metrics from the server's `/metrics` (Prometheus) endpoint, parses them, and stores them into the `metrics.db` SQLite database.
+*   **New API Endpoints**:
+    *   The API server (`entrypoints/openai/api_server.py`) now serves the frontend static files (e.g., under `/ui/` and `/`).
+    *   A new API endpoint, `/api/v1/historical_metrics/{metric_name}`, has been added to provide aggregated historical data to the UI.
+
+### How to Use
+
+1.  **Start the Metrics Collector:**
+    Open a terminal and run the collector script from the project root:
+    ```bash
+    python metrics_collector.py
+    ```
+    This script will start fetching metrics from the `/metrics` endpoint (by default `http://localhost:8000/metrics`) and storing them in `metrics.db`. It needs to run continuously to populate historical data.
+
+2.  **Start the Main API Server:**
+    In another terminal, start the vLLM Nvext API server as usual:
+    ```bash
+    python -m entrypoints.openai.api_server
+    # or with specific arguments like --host, --port, etc.
+    ```
+    The server will also host the frontend UI.
+
+3.  **Access the UI:**
+    Open a web browser and navigate to the root URL of the API server (e.g., `http://localhost:8000/` or `http://127.0.0.1:8000/`). You should see the "vLLM Performance Metrics" dashboard.
+
+### Key Features of the UI
+
+*   **Real-time Dashboard:**
+    *   Displays current values for metrics like "Requests Running" and "GPU Cache Usage (%)".
+*   **Historical Data View:**
+    *   Displays aggregated values for metrics like "Avg. E2E Latency (s)".
+*   **Configurable Refresh Interval:**
+    *   The user can set how frequently (in seconds) the data on the dashboard should refresh.
+*   **Selectable Time Windows:**
+    *   For historical data, users can choose to view aggregations over the "Last Hour", "Last Day", or "Last Week".
+
+### Collector Configuration
+
+The `metrics_collector.py` script can be configured using the following environment variables:
+
+*   `METRICS_ENDPOINT_URL`: Overrides the default URL (`http://localhost:8000/metrics`) from which to fetch Prometheus metrics.
+*   `SCRAPE_INTERVAL`: Overrides the default scrape interval (10 seconds) for fetching metrics.
+*   **Database File**: The collector will create/use an SQLite database file named `metrics.db` in the project's root directory.
 
 ## Architecture
 

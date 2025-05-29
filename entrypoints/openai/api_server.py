@@ -12,17 +12,18 @@ import signal
 import socket
 import tempfile
 import uuid
-import vllm_mxext
 from argparse import Namespace
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from functools import partial
 from http import HTTPStatus
-from typing import Annotated, Optional, Union,List
-#from typing import AsyncIterator
+from typing import Annotated, Optional, Union, List
+from datetime import datetime, timedelta, timezone # Added timezone for ISO parsing
 
 import uvloop
-from fastapi import APIRouter, Depends, FastAPI, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, Form, HTTPException, Request, Query # Added Query
+from fastapi.staticfiles import StaticFiles # Added StaticFiles
+from fastapi.responses import FileResponse # Added FileResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, StreamingResponse
@@ -44,6 +45,7 @@ from vllm_mxext.entrypoints.openai.api_extensions import NIMLLMVersionResponse
 #from vllm_mxext.engine.metrics import NimMetrics
 from vllm_mxext.hub import inject_mx_hub
 from vllm_mxext.hub import print_system_and_profile_summaries
+from vllm_mxext.metrics_db import get_aggregated_metrics # Added metrics_db import
 from vllm_mxext.logger import (
     configure_all_loggers_with_handlers_except,
     configure_logger,
@@ -880,7 +882,95 @@ def build_app(args: Namespace) -> FastAPI:
     else:
         app = FastAPI(lifespan=lifespan)
     app.include_router(router)
+
+    # Router for historical metrics
+    historical_metrics_router = APIRouter(
+    prefix="/api/v1/historical_metrics",
+    tags=["Historical Metrics"]
+)
+
+def parse_iso_datetime_string(datetime_str: str) -> datetime:
+    """Parses an ISO 8601 string to a datetime object, handling 'Z' and naive formats."""
+    try:
+        if datetime_str.endswith('Z'):
+            return datetime.fromisoformat(datetime_str[:-1] + '+00:00')
+        return datetime.fromisoformat(datetime_str)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Invalid ISO 8601 datetime format for '{datetime_str}': {e}. Expected YYYY-MM-DDTHH:MM:SSZ or YYYY-MM-DDTHH:MM:SS"
+        )
+
+@historical_metrics_router.get("/{metric_name}")
+async def get_historical_metric_data(
+    metric_name: str,
+    start_time_iso: str = Query(..., description="Start time in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ or YYYY-MM-DDTHH:MM:SS)", example="2023-01-01T00:00:00Z"),
+    end_time_iso: str = Query(..., description="End time in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ or YYYY-MM-DDTHH:MM:SS)", example="2023-01-01T12:00:00Z"),
+    period: str = Query(..., description="Aggregation period: 'hourly' or 'daily'", example="hourly"),
+    agg: str = Query(..., description="Aggregation function: 'AVG', 'SUM', 'COUNT', 'MIN', 'MAX'", example="AVG")
+) -> List[dict]:
+    """
+    Retrieves aggregated historical metrics for a given metric name over a specified time range.
+    """
+    try:
+        start_datetime = parse_iso_datetime_string(start_time_iso)
+        end_datetime = parse_iso_datetime_string(end_time_iso)
+    except HTTPException:
+        raise # Re-raise the HTTPException from parse_iso_datetime_string
+
+    if start_datetime >= end_datetime:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="End time must be after start time."
+        )
+
+    try:
+        # Ensure datetimes are timezone-aware (UTC) if they were naive
+        if start_datetime.tzinfo is None:
+            start_datetime = start_datetime.replace(tzinfo=timezone.utc)
+        if end_datetime.tzinfo is None:
+            end_datetime = end_datetime.replace(tzinfo=timezone.utc)
+
+        results = get_aggregated_metrics(
+            metric_name=metric_name,
+            start_time=start_datetime,
+            end_time=end_datetime,
+            aggregation_period=period,
+            aggregation_function=agg.upper() # Ensure function is uppercase as expected by DB layer
+        )
+        return results
+    except ValueError as ve: # Catch ValueErrors from get_aggregated_metrics (e.g., invalid period/agg)
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=str(ve)
+        )
+    except Exception as e:
+        logger.error(f"Error fetching historical metrics: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while fetching historical metrics."
+        )
+
+    app.include_router(historical_metrics_router)
     app.root_path = args.root_path
+
+    # Serve frontend static files
+    # Assuming api_server.py is at project_root/entrypoints/openai/api_server.py
+    # and frontend is at project_root/frontend
+    current_script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.join(current_script_dir, "..", "..") # Moves up two levels from entrypoints/openai to project_root
+    frontend_dir = os.path.join(project_root, "frontend")
+
+    if os.path.exists(frontend_dir) and os.path.isdir(frontend_dir):
+        app.mount("/ui", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+        logger.info(f"Serving frontend UI from {frontend_dir} at /ui and /ui/index.html")
+
+        @app.get("/", include_in_schema=False)
+        async def root_redirect_to_ui():
+            return FileResponse(os.path.join(frontend_dir, "index.html"))
+        logger.info(f"Redirecting root path / to /ui/index.html")
+    else:
+        logger.warning(f"Frontend directory not found at {frontend_dir}. UI will not be served.")
 
     mount_metrics(app)
 
@@ -1122,6 +1212,17 @@ def create_server_socket(addr: tuple[str, int]) -> socket.socket:
 
 
 async def run_server(args, **uvicorn_kwargs) -> None:
+    # Initialize the metrics database (ensure table exists)
+    # This is a good place if metrics_db is lightweight and init_db is idempotent
+    try:
+        from vllm_mxext import metrics_db
+        metrics_db.init_db()
+        logger.info("Metrics database initialized.")
+    except Exception as e:
+        logger.error(f"Failed to initialize metrics database: {e}", exc_info=True)
+        # Depending on severity, you might want to prevent server startup
+        # For now, just log the error.
+
     logger.info("vLLM API server version %s", VLLM_VERSION)
     logger.info("args: %s", args)
 
