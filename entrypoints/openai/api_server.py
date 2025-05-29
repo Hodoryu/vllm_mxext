@@ -881,80 +881,64 @@ def build_app(args: Namespace) -> FastAPI:
                       lifespan=lifespan)
     else:
         app = FastAPI(lifespan=lifespan)
-    app.include_router(router)
-
-    # Router for historical metrics
-    historical_metrics_router = APIRouter(
-    prefix="/api/v1/historical_metrics",
-    tags=["Historical Metrics"]
-)
-
-def parse_iso_datetime_string(datetime_str: str) -> datetime:
-    """Parses an ISO 8601 string to a datetime object, handling 'Z' and naive formats."""
-    try:
-        if datetime_str.endswith('Z'):
-            return datetime.fromisoformat(datetime_str[:-1] + '+00:00')
-        return datetime.fromisoformat(datetime_str)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=f"Invalid ISO 8601 datetime format for '{datetime_str}': {e}. Expected YYYY-MM-DDTHH:MM:SSZ or YYYY-MM-DDTHH:MM:SS"
-        )
-
-@historical_metrics_router.get("/{metric_name}")
-async def get_historical_metric_data(
-    metric_name: str,
-    start_time_iso: str = Query(..., description="Start time in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ or YYYY-MM-DDTHH:MM:SS)", example="2023-01-01T00:00:00Z"),
-    end_time_iso: str = Query(..., description="End time in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ or YYYY-MM-DDTHH:MM:SS)", example="2023-01-01T12:00:00Z"),
-    period: str = Query(..., description="Aggregation period: 'hourly' or 'daily'", example="hourly"),
-    agg: str = Query(..., description="Aggregation function: 'AVG', 'SUM', 'COUNT', 'MIN', 'MAX'", example="AVG")
-) -> List[dict]:
-    """
-    Retrieves aggregated historical metrics for a given metric name over a specified time range.
-    """
-    try:
-        start_datetime = parse_iso_datetime_string(start_time_iso)
-        end_datetime = parse_iso_datetime_string(end_time_iso)
-    except HTTPException:
-        raise # Re-raise the HTTPException from parse_iso_datetime_string
-
-    if start_datetime >= end_datetime:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail="End time must be after start time."
-        )
-
-    try:
-        # Ensure datetimes are timezone-aware (UTC) if they were naive
-        if start_datetime.tzinfo is None:
-            start_datetime = start_datetime.replace(tzinfo=timezone.utc)
-        if end_datetime.tzinfo is None:
-            end_datetime = end_datetime.replace(tzinfo=timezone.utc)
-
-        results = get_aggregated_metrics(
-            metric_name=metric_name,
-            start_time=start_datetime,
-            end_time=end_datetime,
-            aggregation_period=period,
-            aggregation_function=agg.upper() # Ensure function is uppercase as expected by DB layer
-        )
-        return results
-    except ValueError as ve: # Catch ValueErrors from get_aggregated_metrics (e.g., invalid period/agg)
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=str(ve)
-        )
-    except Exception as e:
-        logger.error(f"Error fetching historical metrics: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while fetching historical metrics."
-        )
-
-    app.include_router(historical_metrics_router)
+    
+    app.include_router(router) # Main OpenAI router
     app.root_path = args.root_path
 
-    # Serve frontend static files
+    # --- START: Historical Metrics Router Definition and Routes ---
+    # Using 'hist_router' as per the detailed instructions for clarity
+    hist_router = APIRouter(
+        prefix="/api/v1/historical_metrics",
+        tags=["Historical Metrics"]
+    )
+
+    # Ensure parse_iso_datetime_string is defined at module level (verified)
+    # and get_aggregated_metrics, logger, HTTPStatus, timezone, List, Query are imported (verified)
+
+    @hist_router.get("/{metric_name}")
+    async def get_historical_metric_data(
+        metric_name: str,
+        start_time_iso: str = Query(..., description="Start time in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ or YYYY-MM-DDTHH:MM:SS)", example="2023-01-01T00:00:00Z"),
+        end_time_iso: str = Query(..., description="End time in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ or YYYY-MM-DDTHH:MM:SS)", example="2023-01-01T12:00:00Z"),
+        period: str = Query(..., description="Aggregation period: 'hourly' or 'daily'", example="hourly"),
+        agg: str = Query(..., description="Aggregation function: 'AVG', 'SUM', 'COUNT', 'MIN', 'MAX'", example="AVG")
+    ) -> List[dict]:
+        try:
+            start_datetime = parse_iso_datetime_string(start_time_iso)
+            end_datetime = parse_iso_datetime_string(end_time_iso)
+        except HTTPException:
+            raise 
+
+        if start_datetime >= end_datetime:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="End time must be after start time."
+            )
+
+        try:
+            if start_datetime.tzinfo is None:
+                start_datetime = start_datetime.replace(tzinfo=timezone.utc)
+            if end_datetime.tzinfo is None:
+                end_datetime = end_datetime.replace(tzinfo=timezone.utc)
+
+            results = get_aggregated_metrics(
+                metric_name=metric_name,
+                start_time=start_datetime,
+                end_time=end_datetime,
+                aggregation_period=period,
+                aggregation_function=agg.upper()
+            )
+            return results
+        except ValueError as ve: 
+            raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(ve))
+        except Exception as e:
+            logger.error(f"Error fetching historical metrics: {e}", exc_info=True)
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while fetching historical metrics.")
+
+    app.include_router(hist_router)
+    # --- END: Historical Metrics Router Definition and Routes ---
+
+    # --- START: Static File Serving ---
     # Assuming api_server.py is at project_root/entrypoints/openai/api_server.py
     # and frontend is at project_root/frontend
     current_script_dir = os.path.dirname(os.path.abspath(__file__))
