@@ -436,6 +436,280 @@ curl http://localhost:8000/health
 curl http://localhost:8000/v1/lora_adapters
 ```
 
+## 性能测试
+
+### 性能测试工具
+
+该项目包含一个全面的性能测试工具，用于测量LLM推理性能指标：
+
+- **Tokens吞吐量** (tokens/s) - 总体和单请求吞吐量
+- **TTFT** (Time to First Token) - 首个token生成时间
+- **TPOT** (Time Per Output Token) - 每个输出token的平均时间
+- **End-to-End Latency** - 完整请求处理时间
+
+#### 核心特性
+
+🚀 **核心功能**
+- 全面的性能指标收集
+- 百分位数统计分析（P95、P99）
+- 并发请求测试
+- 流式和非流式响应支持
+- 带时间戳的自动结果记录
+
+📊 **统计分析**
+- 均值、中位数、P95、P99、最小值、最大值
+- 单个和聚合指标
+- JSON格式的结构化输出
+- 时间序列性能跟踪
+
+🔧 **技术特性**
+- 异步并发请求处理
+- 可配置的测试参数
+- YAML配置文件支持
+- 灵活的提示词管理
+- 自动日志目录创建
+
+#### 基本使用方法
+
+```bash
+# 使用默认提示词测试
+python -m vllm_mxext.tools.performance_tester --model your_model_name
+
+# 使用自定义提示词文件测试
+python -m vllm_mxext.tools.performance_tester --model your_model_name --prompts-file prompts.txt
+
+# 并发请求测试
+python -m vllm_mxext.tools.performance_tester --model your_model_name --concurrent-requests 4
+
+# 自定义参数测试
+python -m vllm_mxext.tools.performance_tester \
+  --model your_model_name \
+  --max-tokens 200 \
+  --temperature 0.8 \
+  --concurrent-requests 8 \
+  --stream
+```
+
+#### 基于配置文件的测试
+
+创建YAML配置文件：
+
+```yaml
+# performance_config.yaml
+server:
+  url: "http://localhost:8000"
+  model: "llama-2-7b-chat"
+
+test_params:
+  max_tokens: 150
+  temperature: 0.7
+  concurrent_requests: 4
+  stream: true
+
+prompts:
+  - "什么是人工智能？"
+  - "解释机器学习概念。"
+  - "写一个关于机器人的故事。"
+
+output:
+  log_dir: "/opt/mim/log"
+  save_individual_metrics: true
+  console_output: true
+```
+
+使用配置文件运行：
+```bash
+python -m vllm_mxext.tools.performance_config_runner performance_config.yaml
+```
+
+#### 性能指标输出
+
+工具提供详细的性能指标和全面的统计信息：
+
+```
+================================================================================
+性能测试结果
+================================================================================
+
+测试摘要:
+  总请求数: 10
+  总Token数: 1,250
+  提示Token数: 150
+  完成Token数: 1,100
+  测试持续时间: 15.45s
+  总体吞吐量: 80.91 tokens/s
+
+首个Token时间 (TTFT):
+  均值: 0.245s
+  中位数: 0.230s
+  P95: 0.380s
+  P99: 0.420s
+  最小值: 0.180s
+  最大值: 0.450s
+
+每个输出Token时间 (TPOT):
+  均值: 0.012s
+  中位数: 0.011s
+  P95: 0.018s
+  P99: 0.020s
+  最小值: 0.008s
+  最大值: 0.025s
+
+端到端延迟:
+  均值: 1.545s
+  中位数: 1.520s
+  P95: 2.100s
+  P99: 2.250s
+  最小值: 1.200s
+  最大值: 2.300s
+
+吞吐量 (tokens/s):
+  均值: 80.91
+  中位数: 82.15
+  P95: 95.20
+  P99: 98.50
+  最小值: 65.30
+  最大值: 105.80
+================================================================================
+
+结果已保存到: /opt/mim/log/mim_profile_20241201_143022.log
+```
+
+#### 命令行选项
+
+```bash
+python -m vllm_mxext.tools.performance_tester --help
+
+必需参数:
+  --model MODEL            要测试的模型名称
+
+可选参数:
+  --server-url URL         服务器URL (默认: http://localhost:8000)
+  --prompts-file FILE      包含提示词的文件 (每行一个)
+  --num-prompts N          使用的默认提示词数量 (默认: 10)
+  --max-tokens N           每个响应的最大token数 (默认: 100)
+  --temperature FLOAT      生成温度 (默认: 0.7)
+  --concurrent-requests N  并发请求数 (默认: 1)
+  --stream                 使用流式响应 (默认: True)
+  --no-stream             禁用流式响应
+  --log-dir DIR           保存日志文件的目录 (默认: /opt/mim/log)
+  --no-save               不保存结果到文件
+  --save-individual       保存单个请求指标
+```
+
+#### 高级使用示例
+
+**高并发负载测试：**
+```bash
+python -m vllm_mxext.tools.performance_tester \
+  --model llama-2-7b-chat \
+  --concurrent-requests 16 \
+  --num-prompts 50 \
+  --max-tokens 200 \
+  --save-individual
+```
+
+**自定义提示词测试：**
+```bash
+# 创建提示词文件
+echo "解释量子计算" > test_prompts.txt
+echo "写一个Python函数" >> test_prompts.txt
+echo "描述机器学习" >> test_prompts.txt
+
+# 运行测试
+python -m vllm_mxext.tools.performance_tester \
+  --model llama-2-7b-chat \
+  --prompts-file test_prompts.txt \
+  --concurrent-requests 4
+```
+
+**非流式性能测试：**
+```bash
+python -m vllm_mxext.tools.performance_tester \
+  --model llama-2-7b-chat \
+  --no-stream \
+  --concurrent-requests 8 \
+  --max-tokens 150
+```
+
+#### 日志文件和输出
+
+**自动日志记录：**
+- 性能结果自动保存到 `/opt/mim/log/`
+- 文件名格式：`mim_profile_YYYYMMDD_HHMMSS.log`
+- 包含聚合和单个请求指标
+
+**日志文件内容：**
+- 测试配置和参数
+- 聚合性能统计（JSON格式）
+- 单个请求指标（可选）
+- 时间戳和测试元数据
+
+**日志结构示例：**
+```
+性能测试结果 - 2024-12-01T14:30:22
+
+聚合指标:
+{
+  "total_requests": 10,
+  "total_tokens": 1250,
+  "ttft_mean": 0.245,
+  "tpot_mean": 0.012,
+  "e2e_mean": 1.545,
+  "overall_throughput": 80.91,
+  ...
+}
+
+单个请求指标:
+{
+  "request_id": "req_0",
+  "ttft": 0.230,
+  "tpot": 0.011,
+  "e2e_latency": 1.520,
+  "throughput": 82.15,
+  ...
+}
+```
+
+#### 与监控系统集成
+
+性能测试工具与项目的监控系统集成：
+
+- 指标与Prometheus格式兼容
+- 结果可用于仪表板可视化
+- 历史性能跟踪功能
+- 与现有日志基础设施集成
+
+#### 便捷脚本
+
+使用便捷脚本进行快速测试：
+
+```bash
+# 直接脚本执行
+python scripts/performance_test.py --model your_model_name --concurrent-requests 4
+```
+
+#### 性能测试最佳实践
+
+**测试准备：**
+1. 确保服务器正常运行并已加载模型
+2. 准备多样化的测试提示词
+3. 根据硬件配置调整并发数
+
+**测试策略：**
+- 从低并发开始，逐步增加负载
+- 测试不同长度的提示词和响应
+- 比较流式和非流式性能
+- 记录不同温度设置下的性能
+
+**结果分析：**
+- 关注P95和P99延迟指标
+- 监控吞吐量随并发数的变化
+- 分析TTFT和TPOT的分布
+- 识别性能瓶颈和优化机会
+
+这个全面的性能测试工具能够在各种条件和负载下彻底评估LLM推理性能。
+
 ## 贡献
 欢迎贡献！请开启issue或提交pull request。（用户可能希望扩展此部分）。
 

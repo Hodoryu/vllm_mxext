@@ -1,0 +1,32 @@
+# Performance Test Configuration Example
+
+# Server configuration
+server:
+  url: "http://localhost:8000"
+  model: "llama-2-7b-chat"
+
+# Test parameters
+test_params:
+  max_tokens: 150
+  temperature: 0.7
+  concurrent_requests: 4
+  stream: true
+
+# Test prompts
+prompts:
+  - "What is artificial intelligence and how does it work?"
+  - "Explain the concept of machine learning in detail."
+  - "Write a comprehensive guide on deep learning."
+  - "Describe the differences between supervised and unsupervised learning."
+  - "What are the applications of natural language processing?"
+  - "How do neural networks process information?"
+  - "Explain the concept of computer vision and its applications."
+  - "What is reinforcement learning and how is it used?"
+  - "Describe the role of data in machine learning models."
+  - "What are the ethical considerations in AI development?"
+
+# Output configuration
+output:
+  log_dir: "/opt/mim/log"
+  save_individual_metrics: true
+  console_output: true

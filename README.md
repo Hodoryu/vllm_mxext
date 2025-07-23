@@ -404,6 +404,261 @@ print(json.dumps(result, indent=2))
 *   **Documentation:** (This README aims to improve it!) Detailed internal documentation might be needed for contributors.
 *   **Resource Intensive:** LLMs demand significant GPU memory and compute.
 
+## Performance Testing
+
+### Performance Testing Tool
+
+The project includes a comprehensive performance testing tool to measure LLM inference performance metrics:
+
+- **Tokens Throughput** (tokens/s) - Overall and per-request throughput
+- **TTFT** (Time to First Token) - Time until first token is generated
+- **TPOT** (Time Per Output Token) - Average time per output token
+- **End-to-End Latency** - Complete request processing time
+
+#### Key Features
+
+🚀 **Core Capabilities**
+- Comprehensive performance metrics collection
+- Statistical analysis with percentiles (P95, P99)
+- Concurrent request testing
+- Streaming and non-streaming response support
+- Automatic result logging with timestamps
+
+📊 **Statistical Analysis**
+- Mean, Median, P95, P99, Min, Max values
+- Individual and aggregated metrics
+- JSON-formatted structured output
+- Time-series performance tracking
+
+🔧 **Technical Features**
+- Asynchronous concurrent request handling
+- Configurable test parameters
+- YAML configuration file support
+- Flexible prompt management
+- Automatic log directory creation
+
+#### Basic Usage
+
+```bash
+# Test with default prompts
+python -m vllm_mxext.tools.performance_tester --model your_model_name
+
+# Test with custom prompts file
+python -m vllm_mxext.tools.performance_tester --model your_model_name --prompts-file prompts.txt
+
+# Test with concurrent requests
+python -m vllm_mxext.tools.performance_tester --model your_model_name --concurrent-requests 4
+
+# Test with custom parameters
+python -m vllm_mxext.tools.performance_tester \
+  --model your_model_name \
+  --max-tokens 200 \
+  --temperature 0.8 \
+  --concurrent-requests 8 \
+  --stream
+```
+
+#### Configuration-Based Testing
+
+Create a YAML configuration file:
+
+```yaml
+# performance_config.yaml
+server:
+  url: "http://localhost:8000"
+  model: "llama-2-7b-chat"
+
+test_params:
+  max_tokens: 150
+  temperature: 0.7
+  concurrent_requests: 4
+  stream: true
+
+prompts:
+  - "What is artificial intelligence?"
+  - "Explain machine learning concepts."
+  - "Write a story about robots."
+
+output:
+  log_dir: "/opt/mim/log"
+  save_individual_metrics: true
+  console_output: true
+```
+
+Run with configuration:
+```bash
+python -m vllm_mxext.tools.performance_config_runner performance_config.yaml
+```
+
+#### Performance Metrics Output
+
+The tool provides detailed performance metrics with comprehensive statistics:
+
+```
+================================================================================
+PERFORMANCE TEST RESULTS
+================================================================================
+
+Test Summary:
+  Total Requests: 10
+  Total Tokens: 1,250
+  Prompt Tokens: 150
+  Completion Tokens: 1,100
+  Test Duration: 15.45s
+  Overall Throughput: 80.91 tokens/s
+
+Time to First Token (TTFT):
+  Mean: 0.245s
+  Median: 0.230s
+  P95: 0.380s
+  P99: 0.420s
+  Min: 0.180s
+  Max: 0.450s
+
+Time Per Output Token (TPOT):
+  Mean: 0.012s
+  Median: 0.011s
+  P95: 0.018s
+  P99: 0.020s
+  Min: 0.008s
+  Max: 0.025s
+
+End-to-End Latency:
+  Mean: 1.545s
+  Median: 1.520s
+  P95: 2.100s
+  P99: 2.250s
+  Min: 1.200s
+  Max: 2.300s
+
+Throughput (tokens/s):
+  Mean: 80.91
+  Median: 82.15
+  P95: 95.20
+  P99: 98.50
+  Min: 65.30
+  Max: 105.80
+================================================================================
+
+Results saved to: /opt/mim/log/mim_profile_20241201_143022.log
+```
+
+#### Command Line Options
+
+```bash
+python -m vllm_mxext.tools.performance_tester --help
+
+Required Arguments:
+  --model MODEL            Model name to test
+
+Optional Arguments:
+  --server-url URL         Server URL (default: http://localhost:8000)
+  --prompts-file FILE      File containing prompts (one per line)
+  --num-prompts N          Number of default prompts to use (default: 10)
+  --max-tokens N           Maximum tokens per response (default: 100)
+  --temperature FLOAT      Temperature for generation (default: 0.7)
+  --concurrent-requests N  Number of concurrent requests (default: 1)
+  --stream                 Use streaming responses (default: True)
+  --no-stream             Disable streaming responses
+  --log-dir DIR           Directory to save log files (default: /opt/mim/log)
+  --no-save               Don't save results to file
+  --save-individual       Save individual request metrics
+```
+
+#### Advanced Usage Examples
+
+**Load Testing with High Concurrency:**
+```bash
+python -m vllm_mxext.tools.performance_tester \
+  --model llama-2-7b-chat \
+  --concurrent-requests 16 \
+  --num-prompts 50 \
+  --max-tokens 200 \
+  --save-individual
+```
+
+**Custom Prompts Testing:**
+```bash
+# Create prompts file
+echo "Explain quantum computing" > test_prompts.txt
+echo "Write a Python function" >> test_prompts.txt
+echo "Describe machine learning" >> test_prompts.txt
+
+# Run test
+python -m vllm_mxext.tools.performance_tester \
+  --model llama-2-7b-chat \
+  --prompts-file test_prompts.txt \
+  --concurrent-requests 4
+```
+
+**Non-streaming Performance Test:**
+```bash
+python -m vllm_mxext.tools.performance_tester \
+  --model llama-2-7b-chat \
+  --no-stream \
+  --concurrent-requests 8 \
+  --max-tokens 150
+```
+
+#### Log Files and Output
+
+**Automatic Logging:**
+- Performance results are automatically saved to `/opt/mim/log/`
+- Filename format: `mim_profile_YYYYMMDD_HHMMSS.log`
+- Contains both aggregated and individual request metrics
+
+**Log File Contents:**
+- Test configuration and parameters
+- Aggregated performance statistics (JSON format)
+- Individual request metrics (optional)
+- Timestamps and test metadata
+
+**Example Log Structure:**
+```
+Performance Test Results - 2024-12-01T14:30:22
+
+AGGREGATED METRICS:
+{
+  "total_requests": 10,
+  "total_tokens": 1250,
+  "ttft_mean": 0.245,
+  "tpot_mean": 0.012,
+  "e2e_mean": 1.545,
+  "overall_throughput": 80.91,
+  ...
+}
+
+INDIVIDUAL REQUEST METRICS:
+{
+  "request_id": "req_0",
+  "ttft": 0.230,
+  "tpot": 0.011,
+  "e2e_latency": 1.520,
+  "throughput": 82.15,
+  ...
+}
+```
+
+#### Integration with Monitoring
+
+The performance testing tool integrates with the project's monitoring system:
+
+- Metrics are compatible with Prometheus format
+- Results can be used for dashboard visualization
+- Historical performance tracking capabilities
+- Integration with existing logging infrastructure
+
+#### Convenience Scripts
+
+Use the convenience script for quick testing:
+
+```bash
+# Direct script execution
+python scripts/performance_test.py --model your_model_name --concurrent-requests 4
+```
+
+This comprehensive performance testing tool enables thorough evaluation of LLM inference performance under various conditions and loads.
+
 ## Troubleshooting
 
 ### Common Issues
@@ -441,4 +696,5 @@ Contributions are welcome! Please open an issue or submit a pull request. (User 
 
 ## License
 The licensing for this project is mixed. Parts derived from vLLM are under the Apache 2.0 license. Other parts may be under NVIDIA Proprietary licenses. Please check the source files for specific license headers. (User should verify and update this section accurately).
+
 
