@@ -1,0 +1,35 @@
+# LoRA Configuration Example for vLLM MxExt
+
+# Base model configuration
+base_model:
+  model_path: "/path/to/base/model"
+  model_name: "llama-2-7b-chat"
+
+# LoRA adapters configuration
+lora_adapters:
+  - name: "math_tuned"
+    path: "/path/to/lora/math_adapter"
+    format: "huggingface"  # huggingface, nemo, trtllm
+    description: "LoRA adapter fine-tuned for mathematical reasoning"
+    
+  - name: "code_tuned"
+    path: "/path/to/lora/code_adapter"
+    format: "huggingface"
+    description: "LoRA adapter fine-tuned for code generation"
+    
+  - name: "medical_tuned"
+    path: "/path/to/lora/medical_adapter"
+    format: "trtllm"
+    description: "LoRA adapter fine-tuned for medical domain"
+
+# LoRA runtime settings
+lora_settings:
+  max_lora_rank: 64
+  max_loras: 8
+  enable_dynamic_loading: true
+  cache_size: 4  # Number of LoRAs to keep in memory
+  
+# Auto-load LoRAs on startup
+auto_load:
+  - "math_tuned"
+  - "code_tuned"

@@ -80,27 +80,212 @@ The "Model Experience" (MX) Hub (`hub/`) uses manifest files (e.g., `model_manif
 *   `MIM_MODEL_NAME`: Specifies the model to be loaded (maps to entries in the manifest).
 *   Refer to `hub/mx_download.py` and `nim_hub` documentation for more details on manifest structure and available configurations.
 
+### LoRA Configuration
+LoRA (Low-Rank Adaptation) support can be configured via environment variables:
+*   `VLLM_ALLOW_RUNTIME_LORA_UPDATING`: (Default: `false`) Set to `true` to enable dynamic LoRA loading/unloading.
+*   `VLLM_MAX_LORA_RANK`: (Default: `32`) Maximum LoRA rank supported.
+*   `VLLM_MAX_LORAS`: (Default: `8`) Maximum number of LoRA adapters that can be loaded simultaneously.
+*   `MIM_MAX_GPU_LORAS`: (Default: `8`) Maximum LoRA adapters on GPU.
+*   `MIM_MAX_CPU_LORAS`: (Default: `16`) Maximum LoRA adapters on CPU.
+
 ## Usage / Quick Start
 
-### Running the OpenAI-Compatible API Server
-The primary way to use `vllm_mxext` is by running the OpenAI-compatible API server:
+### Default Configuration Startup
 
+#### Basic Server Startup
 ```bash
-python -m entrypoints.openai.api_server --host 0.0.0.0 --port 8000
+# Start with default configuration
+python -m vllm_mxext.entrypoints.openai.api_server --host 0.0.0.0 --port 8000 --model /path/to/your/model
+
+# Start with environment variables
+export MIM_MODEL_NAME="your_model_name"
+python -m vllm_mxext.entrypoints.openai.api_server
 ```
-Or, if `MIM_MODEL_NAME` and other configurations are set via environment variables:
+
+#### Start with LoRA Support
 ```bash
-python -m entrypoints.openai.api_server
+# Start server with LoRA support enabled
+python scripts/start_with_lora.py --model /path/to/base/model --host 0.0.0.0 --port 8000
+
+# Start with custom LoRA configuration
+python scripts/start_with_lora.py --model /path/to/base/model --lora-config examples/lora_config_example.yaml
 ```
 
-Key command-line arguments for `api_server.py` (can also be set/overridden by environment variables):
-*   `--host`: Host to bind the server to.
-*   `--port`: Port for the server.
-*   `--model` or `MIM_MODEL_NAME` (env var): Name of the model to serve (corresponds to manifest entries).
-*   `--tensor-parallel-size` or `TP_SIZE` (env var): Tensor parallel degree.
-*   ... (refer to `entrypoints.openai.api_server.py` for more arguments)
+### Testing the Server
 
-Once started, the server exposes endpoints like `/v1/chat/completions`, `/v1/completions`, and `/v1/models`.
+#### Basic Health Check
+```bash
+# Check server status
+curl http://localhost:8000/health
+
+# List available models
+curl http://localhost:8000/v1/models
+```
+
+#### Basic Inference Test
+```bash
+# Test chat completions
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "your_model_name",
+    "messages": [{"role": "user", "content": "Hello, how are you?"}],
+    "max_tokens": 100,
+    "temperature": 0.7
+  }'
+
+# Test completions
+curl -X POST http://localhost:8000/v1/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "your_model_name",
+    "prompt": "The capital of France is",
+    "max_tokens": 50
+  }'
+```
+
+## LoRA Adapter Usage
+
+### LoRA Configuration File
+
+Create a LoRA configuration file (`lora_config.yaml`):
+
+```yaml
+# LoRA Configuration
+base_model:
+  model_path: "/path/to/base/model"
+  model_name: "llama-2-7b-chat"
+
+lora_adapters:
+  - name: "math_tuned"
+    path: "/path/to/lora/math_adapter"
+    format: "huggingface"
+    description: "LoRA adapter for mathematical reasoning"
+    
+  - name: "code_tuned"
+    path: "/path/to/lora/code_adapter"
+    format: "huggingface"
+    description: "LoRA adapter for code generation"
+
+lora_settings:
+  max_lora_rank: 64
+  max_loras: 8
+  enable_dynamic_loading: true
+  cache_size: 4
+
+auto_load:
+  - "math_tuned"
+```
+
+### Dynamic LoRA Management via API
+
+#### Load LoRA Adapter
+```bash
+curl -X POST http://localhost:8000/v1/load_lora_adapter \
+  -H "Content-Type: application/json" \
+  -d '{
+    "lora_name": "math_tuned",
+    "lora_path": "/path/to/math_lora_adapter"
+  }'
+```
+
+#### List Loaded LoRA Adapters
+```bash
+curl http://localhost:8000/v1/lora_adapters
+```
+
+#### Unload LoRA Adapter
+```bash
+curl -X POST http://localhost:8000/v1/unload_lora_adapter \
+  -H "Content-Type: application/json" \
+  -d '{
+    "lora_name": "math_tuned"
+  }'
+```
+
+### LoRA Inference
+
+#### Using LoRA with Chat Completions
+```bash
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "base_model:math_tuned",
+    "messages": [
+      {"role": "user", "content": "Solve this equation: 2x + 5 = 13"}
+    ],
+    "max_tokens": 150,
+    "temperature": 0.7
+  }'
+```
+
+#### Using LoRA with Completions
+```bash
+curl -X POST http://localhost:8000/v1/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "base_model:code_tuned",
+    "prompt": "def fibonacci(n):",
+    "max_tokens": 200
+  }'
+```
+
+### CLI Tool for LoRA Management
+
+#### Install and Use LoRA Manager CLI
+```bash
+# Load a LoRA adapter
+python -m vllm_mxext.tools.lora_manager load math_tuned /path/to/math_lora_adapter
+
+# List loaded LoRA adapters
+python -m vllm_mxext.tools.lora_manager list
+
+# Test LoRA inference
+python -m vllm_mxext.tools.lora_manager test math_tuned "What is the derivative of x^2?"
+
+# Unload a LoRA adapter
+python -m vllm_mxext.tools.lora_manager unload math_tuned
+
+# Use custom server URL
+python -m vllm_mxext.tools.lora_manager --server-url http://your-server:8000 list
+```
+
+### Custom LoRA Configuration Startup
+
+#### Method 1: Using Configuration File
+```bash
+# Create custom LoRA config
+cat > my_lora_config.yaml << EOF
+base_model:
+  model_path: "/models/llama-2-7b"
+  model_name: "llama-2-7b"
+
+lora_adapters:
+  - name: "custom_adapter"
+    path: "/lora_adapters/my_custom_adapter"
+    format: "huggingface"
+
+lora_settings:
+  max_lora_rank: 128
+  max_loras: 16
+  enable_dynamic_loading: true
+EOF
+
+# Start server with custom config
+python scripts/start_with_lora.py --model /models/llama-2-7b --lora-config my_lora_config.yaml
+```
+
+#### Method 2: Using Environment Variables
+```bash
+# Set LoRA environment variables
+export VLLM_ALLOW_RUNTIME_LORA_UPDATING=true
+export VLLM_MAX_LORA_RANK=128
+export VLLM_MAX_LORAS=16
+export MIM_MAX_GPU_LORAS=16
+
+# Start server
+python -m vllm_mxext.entrypoints.openai.api_server --model /models/llama-2-7b
+```
 
 ### Programmatic Usage (Offline Inference)
 The `TRTLLM` class in `entrypoints/nvllm.py` can be used for direct programmatic inference with TensorRT-LLM models:
@@ -111,6 +296,46 @@ The `TRTLLM` class in `entrypoints/nvllm.py` can be used for direct programmatic
 # engine = TRTLLM(**engine_args)
 # results = engine.generate(prompts=["My prompt"])
 # print(results)
+```
+
+### Python SDK Usage Example
+
+```python
+#!/usr/bin/env python3
+import requests
+import json
+
+class VllmMxextClient:
+    def __init__(self, base_url="http://localhost:8000"):
+        self.base_url = base_url.rstrip('/')
+    
+    def load_lora(self, lora_name: str, lora_path: str):
+        """Load a LoRA adapter"""
+        response = requests.post(
+            f"{self.base_url}/v1/load_lora_adapter",
+            json={"lora_name": lora_name, "lora_path": lora_path}
+        )
+        return response.json()
+    
+    def chat_with_lora(self, lora_name: str, messages: list):
+        """Chat using LoRA adapter"""
+        response = requests.post(
+            f"{self.base_url}/v1/chat/completions",
+            json={
+                "model": f"base_model:{lora_name}",
+                "messages": messages,
+                "max_tokens": 150
+            }
+        )
+        return response.json()
+
+# Usage
+client = VllmMxextClient()
+client.load_lora("math_tuned", "/path/to/math_adapter")
+result = client.chat_with_lora("math_tuned", [
+    {"role": "user", "content": "Solve: 2x + 5 = 13"}
+])
+print(json.dumps(result, indent=2))
 ```
 
 ## Architecture
@@ -147,6 +372,19 @@ The `TRTLLM` class in `entrypoints/nvllm.py` can be used for direct programmatic
 6.  **Response Dispatch**: HTTP response sent to the user.
 7.  **Logging/Metrics**: Activities are logged and metrics updated throughout.
 
+## API Endpoints
+
+### Standard OpenAI-Compatible Endpoints
+- `GET /v1/models` - List available models
+- `POST /v1/chat/completions` - Chat completions
+- `POST /v1/completions` - Text completions
+- `GET /health` - Health check
+
+### LoRA Management Endpoints
+- `POST /v1/load_lora_adapter` - Load a LoRA adapter
+- `POST /v1/unload_lora_adapter` - Unload a LoRA adapter
+- `GET /v1/lora_adapters` - List loaded LoRA adapters
+
 ## Advantages
 
 *   **High Performance:** Optimized for NVIDIA GPUs via TensorRT-LLM.
@@ -166,8 +404,41 @@ The `TRTLLM` class in `entrypoints/nvllm.py` can be used for direct programmatic
 *   **Documentation:** (This README aims to improve it!) Detailed internal documentation might be needed for contributors.
 *   **Resource Intensive:** LLMs demand significant GPU memory and compute.
 
+## Troubleshooting
+
+### Common Issues
+
+#### LoRA Loading Issues
+```bash
+# Check if LoRA path exists and has correct format
+ls -la /path/to/lora/adapter/
+# Should contain: adapter_config.json, adapter_model.bin (for HuggingFace format)
+
+# Check server logs for LoRA loading errors
+tail -f /var/log/vllm_mxext.log
+```
+
+#### Memory Issues
+```bash
+# Monitor GPU memory usage
+nvidia-smi
+
+# Reduce max_loras if running out of memory
+export VLLM_MAX_LORAS=4
+```
+
+#### API Connection Issues
+```bash
+# Test server connectivity
+curl http://localhost:8000/health
+
+# Check if LoRA endpoints are available
+curl http://localhost:8000/v1/lora_adapters
+```
+
 ## Contributing
 Contributions are welcome! Please open an issue or submit a pull request. (User may want to expand this section).
 
 ## License
 The licensing for this project is mixed. Parts derived from vLLM are under the Apache 2.0 license. Other parts may be under NVIDIA Proprietary licenses. Please check the source files for specific license headers. (User should verify and update this section accurately).
+

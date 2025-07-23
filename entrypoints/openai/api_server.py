@@ -99,6 +99,8 @@ from vllm.usage.usage_lib import UsageContext
 from vllm.utils import (Device, FlexibleArgumentParser, get_open_zmq_ipc_path,
                         is_valid_ipv6_address, set_ulimit)
 from vllm.version import __version__ as VLLM_VERSION
+from vllm_mxext.monitoring.dashboard import DashboardManager
+from fastapi.staticfiles import StaticFiles
 
 TIMEOUT_KEEP_ALIVE = 5  # seconds
 engine_args: AsyncEngineArgs
@@ -879,10 +881,20 @@ def build_app(args: Namespace) -> FastAPI:
                       lifespan=lifespan)
     else:
         app = FastAPI(lifespan=lifespan)
+    
     app.include_router(router)
     app.root_path = args.root_path
 
     mount_metrics(app)
+    
+    # Add dashboard integration
+    dashboard_manager = DashboardManager()
+    dashboard_manager.setup_routes(app)
+    
+    # Mount static files for dashboard
+    static_path = os.path.join(os.path.dirname(__file__), "..", "..", "monitoring", "static")
+    if os.path.exists(static_path):
+        app.mount("/static", StaticFiles(directory=static_path), name="static")
 
     app.add_middleware(
         CORSMiddleware,
@@ -891,6 +903,9 @@ def build_app(args: Namespace) -> FastAPI:
         allow_methods=args.allowed_methods,
         allow_headers=args.allowed_headers,
     )
+    
+    # Store dashboard manager in app state for access by other components
+    app.state.dashboard_manager = dashboard_manager
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(_, exc):
@@ -1200,3 +1215,5 @@ async def run_server(args, **uvicorn_kwargs) -> None:
 if __name__ == "__main__":
     args = complete_args_with_env_vars()
     uvloop.run(run_server(args))
+
+

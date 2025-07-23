@@ -246,6 +246,41 @@ class StatLogger:
         self.metrics = NimMetrics(
             labelnames=list(labels.keys()), max_model_len=max_model_len, full_metrics=self._expose_full_metrics()
         )
+        
+        # Add dashboard-specific metrics tracking
+        self.dashboard_metrics = {
+            'active_requests': 0,
+            'queued_requests': 0,
+            'completed_requests': 0,
+            'ttft_samples': [],
+            'ttot_samples': [],
+            'throughput_samples': []
+        }
+    
+    def get_dashboard_metrics(self) -> Dict:
+        """Get metrics formatted for dashboard consumption."""
+        return {
+            'requests': {
+                'active': self.dashboard_metrics['active_requests'],
+                'queued': self.dashboard_metrics['queued_requests'],
+                'completed': self.dashboard_metrics['completed_requests']
+            },
+            'performance': {
+                'ttft_p50': self._calculate_percentile(self.dashboard_metrics['ttft_samples'], 50),
+                'ttft_p95': self._calculate_percentile(self.dashboard_metrics['ttft_samples'], 95),
+                'ttft_p99': self._calculate_percentile(self.dashboard_metrics['ttft_samples'], 99),
+                'ttot_avg': sum(self.dashboard_metrics['ttot_samples']) / len(self.dashboard_metrics['ttot_samples']) if self.dashboard_metrics['ttot_samples'] else 0,
+                'throughput': sum(self.dashboard_metrics['throughput_samples']) / len(self.dashboard_metrics['throughput_samples']) if self.dashboard_metrics['throughput_samples'] else 0
+            }
+        }
+    
+    def _calculate_percentile(self, samples: List[float], percentile: int) -> float:
+        """Calculate percentile from samples."""
+        if not samples:
+            return 0
+        sorted_samples = sorted(samples)
+        index = int((percentile / 100) * len(sorted_samples))
+        return sorted_samples[min(index, len(sorted_samples) - 1)]
 
     def _log_iteration_prometheus(self, stats: IterationStats) -> None:
         # System state data
@@ -305,3 +340,4 @@ class StatLogger:
 
         # Log to prometheus.
         self._log_completion_prometheus(stats)
+

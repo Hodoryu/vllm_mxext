@@ -29,6 +29,9 @@ dependencies = [
   "requests",
   "tqdm",
   "modelscope",
+  "psutil>=5.8.0",
+  "GPUtil>=1.4.0",
+  "websockets>=10.0"
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -39,5 +42,7 @@ classifiers = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["vllm_mxext*"]
+
+
 
 
