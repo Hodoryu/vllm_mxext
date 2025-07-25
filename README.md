@@ -116,16 +116,16 @@ python scripts/start_with_lora.py --model /path/to/base/model --lora-config exam
 #### Basic Health Check
 ```bash
 # Check server status
-curl http://localhost:8000/health
+curl http://0.0.0.0:8000/health
 
 # List available models
-curl http://localhost:8000/v1/models
+curl http://0.0.0.0:8000/v1/models
 ```
 
 #### Basic Inference Test
 ```bash
 # Test chat completions
-curl -X POST http://localhost:8000/v1/chat/completions \
+curl -X POST http://0.0.0.0:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "your_model_name",
@@ -135,7 +135,7 @@ curl -X POST http://localhost:8000/v1/chat/completions \
   }'
 
 # Test completions
-curl -X POST http://localhost:8000/v1/completions \
+curl -X POST http://0.0.0.0:8000/v1/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "your_model_name",
@@ -181,7 +181,7 @@ auto_load:
 
 #### Load LoRA Adapter
 ```bash
-curl -X POST http://localhost:8000/v1/load_lora_adapter \
+curl -X POST http://0.0.0.0:8000/v1/load_lora_adapter \
   -H "Content-Type: application/json" \
   -d '{
     "lora_name": "math_tuned",
@@ -191,12 +191,12 @@ curl -X POST http://localhost:8000/v1/load_lora_adapter \
 
 #### List Loaded LoRA Adapters
 ```bash
-curl http://localhost:8000/v1/lora_adapters
+curl http://0.0.0.0:8000/v1/lora_adapters
 ```
 
 #### Unload LoRA Adapter
 ```bash
-curl -X POST http://localhost:8000/v1/unload_lora_adapter \
+curl -X POST http://0.0.0.0:8000/v1/unload_lora_adapter \
   -H "Content-Type: application/json" \
   -d '{
     "lora_name": "math_tuned"
@@ -207,7 +207,7 @@ curl -X POST http://localhost:8000/v1/unload_lora_adapter \
 
 #### Using LoRA with Chat Completions
 ```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
+curl -X POST http://0.0.0.0:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "base_model:math_tuned",
@@ -221,7 +221,7 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 
 #### Using LoRA with Completions
 ```bash
-curl -X POST http://localhost:8000/v1/completions \
+curl -X POST http://0.0.0.0:8000/v1/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "base_model:code_tuned",
@@ -306,7 +306,7 @@ import requests
 import json
 
 class VllmMxextClient:
-    def __init__(self, base_url="http://localhost:8000"):
+    def __init__(self, base_url="http://0.0.0.0:8000"):
         self.base_url = base_url.rstrip('/')
     
     def load_lora(self, lora_name: str, lora_path: str):
@@ -465,7 +465,7 @@ Create a YAML configuration file:
 ```yaml
 # performance_config.yaml
 server:
-  url: "http://localhost:8000"
+  url: "http://0.0.0.0:8000"
   model: "llama-2-7b-chat"
 
 test_params:
@@ -552,7 +552,7 @@ Required Arguments:
   --model MODEL            Model name to test
 
 Optional Arguments:
-  --server-url URL         Server URL (default: http://localhost:8000)
+  --server-url URL         Server URL (default: http://0.0.0.0:8000)
   --prompts-file FILE      File containing prompts (one per line)
   --num-prompts N          Number of default prompts to use (default: 10)
   --max-tokens N           Maximum tokens per response (default: 100)
@@ -685,10 +685,10 @@ export VLLM_MAX_LORAS=4
 #### API Connection Issues
 ```bash
 # Test server connectivity
-curl http://localhost:8000/health
+curl http://0.0.0.0:8000/health
 
 # Check if LoRA endpoints are available
-curl http://localhost:8000/v1/lora_adapters
+curl http://0.0.0.0:8000/v1/lora_adapters
 ```
 
 ## Contributing

@@ -37,7 +37,7 @@ class ConfigBasedPerformanceTester:
         
         # Initialize tester
         tester = PerformanceTester(
-            server_url=server_config.get('url', 'http://localhost:8000'),
+            server_url=server_config.get('url', 'http://0.0.0.0:8000'),
             log_dir=output_config.get('log_dir', '/opt/mim/log')
         )
         

@@ -10,16 +10,35 @@ import json
 import time
 import statistics
 import os
+import logging
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, asdict
 import requests
 import aiohttp
-import logging
 
-from vllm_mxext.logger import init_logger
+# 设置环境变量确保日志配置生效
+os.environ.setdefault('VLLM_MXEXT_CONFIGURE_LOGGING', '1')
+os.environ.setdefault('VLLM_MXEXT_JSONL_LOGGING', '0')
 
-logger = init_logger(__name__)
+try:
+    from vllm_mxext.logger import init_logger, configure_logger
+    configure_logger("")
+    logger = init_logger(__name__)
+except ImportError as e:
+    # 备选方案：使用标准logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Failed to import vllm_mxext.logger: {e}, using standard logging")
+
+# 确保日志级别正确
+logger.setLevel(logging.INFO)
+
+# 测试日志输出
+logger.info("Performance tester initialized successfully")
 
 
 @dataclass
@@ -84,7 +103,7 @@ class AggregatedMetrics:
 class PerformanceTester:
     """Performance testing tool for LLM inference."""
     
-    def __init__(self, server_url: str = "http://localhost:8000", 
+    def __init__(self, server_url: str = "http://0.0.0.0:8000", 
                  log_dir: str = "/opt/mim/log"):
         self.server_url = server_url.rstrip('/')
         self.log_dir = log_dir
@@ -357,31 +376,62 @@ class PerformanceTester:
 
 
 def get_default_prompts() -> List[str]:
-    """Get default test prompts."""
+    """Get default test prompts with varying token lengths (10-1024 tokens)."""
     return [
+        # Short prompts (10-20 tokens)
         "What is the capital of France?",
         "Explain quantum computing in simple terms.",
-        "Write a short story about a robot learning to paint.",
         "How do neural networks work?",
         "What are the benefits of renewable energy?",
-        "Describe the process of photosynthesis.",
         "What is the difference between AI and machine learning?",
         "Write a poem about the ocean.",
         "Explain the theory of relativity.",
-        "What are the main causes of climate change?"
+        "What are the main causes of climate change?",
+        "How does photosynthesis work?",
+        "What is blockchain technology?",
+        
+        # Medium prompts (50-100 tokens)
+        "Write a short story about a robot learning to paint and discovering the beauty of art for the first time.",
+        "Explain the process of machine learning model training, including data preprocessing, feature selection, and validation techniques.",
+        "Describe the impact of artificial intelligence on modern healthcare, including diagnostic tools, treatment recommendations, and patient care improvements.",
+        "Compare and contrast different renewable energy sources such as solar, wind, hydroelectric, and geothermal power in terms of efficiency and environmental impact.",
+        "Analyze the role of cryptocurrency in the global economy and discuss its potential benefits and risks for traditional financial systems.",
+        "Explain the concept of quantum entanglement and its applications in quantum computing and quantum communication technologies.",
+        "Describe the evolution of programming languages from assembly to modern high-level languages and their impact on software development.",
+        "Discuss the ethical implications of autonomous vehicles, including decision-making algorithms, liability issues, and societal acceptance.",
+        "Explain the principles of sustainable agriculture and how technology can help address global food security challenges.",
+        "Analyze the impact of social media on human communication patterns and its effects on mental health and social relationships.",
+        
+        # Long prompts (200-400 tokens)
+        "Write a comprehensive analysis of the current state of artificial intelligence research, including recent breakthroughs in natural language processing, computer vision, and reinforcement learning. Discuss the challenges that researchers face in developing more advanced AI systems, such as the need for better data quality, computational resources, and algorithmic improvements. Also, explore the potential applications of AI in various industries including healthcare, finance, transportation, and education, while addressing concerns about job displacement, privacy, and the need for responsible AI development practices.",
+        "Explain the complex relationship between climate change and global economic systems. Discuss how rising temperatures, extreme weather events, and sea-level rise affect agricultural productivity, supply chains, and infrastructure development. Analyze the economic costs of climate adaptation and mitigation strategies, including the transition to renewable energy sources, carbon pricing mechanisms, and international cooperation frameworks. Consider the role of technology innovation in addressing climate challenges and the potential for green economic growth models that balance environmental sustainability with economic prosperity.",
+        "Describe the evolution of cybersecurity threats in the digital age and the corresponding development of defense mechanisms. Analyze different types of cyber attacks including malware, phishing, ransomware, and advanced persistent threats, explaining how they exploit vulnerabilities in computer systems and networks. Discuss the importance of cybersecurity frameworks, encryption technologies, and user education in protecting sensitive information. Explore the challenges faced by organizations in maintaining security while enabling digital transformation and remote work capabilities.",
+        "Examine the role of biotechnology in modern medicine, focusing on gene therapy, personalized medicine, and the development of new pharmaceutical treatments. Discuss how advances in genomics, proteomics, and bioinformatics are revolutionizing our understanding of human diseases and enabling more targeted therapeutic approaches. Analyze the ethical considerations surrounding genetic engineering, clinical trials, and access to advanced medical treatments. Consider the potential for biotechnology to address global health challenges and improve quality of life for patients worldwide.",
+        "Analyze the impact of globalization on cultural diversity and local communities. Discuss how increased connectivity, trade, and migration have facilitated cultural exchange while also raising concerns about cultural homogenization and the preservation of traditional practices. Examine the role of technology and social media in shaping global cultural trends and their effects on local identities. Consider strategies for maintaining cultural diversity while embracing the benefits of global interconnectedness and cooperation.",
+        
+        # Very long prompts (500-800 tokens)
+        "Provide a detailed explanation of the principles and applications of machine learning in modern data science, covering supervised learning algorithms such as linear regression, decision trees, random forests, and support vector machines, as well as unsupervised learning techniques including clustering algorithms like k-means and hierarchical clustering, and dimensionality reduction methods such as principal component analysis and t-SNE. Discuss the importance of data preprocessing, feature engineering, and model validation techniques including cross-validation and holdout methods. Explain how deep learning has revolutionized the field with neural networks, convolutional neural networks for image processing, recurrent neural networks for sequence data, and transformer architectures for natural language processing. Address the challenges of overfitting, underfitting, and bias in machine learning models, and describe strategies for model interpretability and explainable AI. Consider the ethical implications of automated decision-making systems and the importance of fairness, accountability, and transparency in AI applications across different domains such as healthcare, finance, criminal justice, and hiring processes.",
+        "Examine the complex interplay between technological innovation and social change throughout human history, from the agricultural revolution to the industrial revolution and the current digital transformation. Analyze how major technological breakthroughs such as the printing press, steam engine, electricity, telecommunications, and the internet have reshaped social structures, economic systems, and cultural practices. Discuss the concept of technological determinism versus social shaping of technology, exploring how society influences technological development while technology simultaneously transforms social relationships and institutions. Consider the role of innovation ecosystems, including research institutions, venture capital, government policies, and entrepreneurial networks in fostering technological advancement. Examine contemporary challenges such as the digital divide, technological unemployment, privacy concerns, and the need for digital literacy in an increasingly connected world. Analyze the potential future implications of emerging technologies such as artificial intelligence, quantum computing, biotechnology, and nanotechnology on society, economy, and human relationships.",
+        "Discuss the evolution of sustainable development practices and their implementation across different sectors of the global economy. Examine the concept of the triple bottom line approach that balances economic prosperity, environmental protection, and social equity in business operations and policy-making. Analyze various sustainability frameworks and standards such as the UN Sustainable Development Goals, ESG (Environmental, Social, and Governance) criteria, and circular economy principles. Explore how companies are integrating sustainability into their core business strategies through initiatives such as renewable energy adoption, waste reduction, sustainable supply chain management, and stakeholder engagement. Consider the role of government regulations, international agreements, and consumer behavior in driving sustainable practices. Discuss the challenges and opportunities associated with measuring and reporting sustainability performance, including the development of standardized metrics and the use of technology for environmental monitoring and impact assessment. Examine case studies of successful sustainability initiatives and their broader implications for achieving long-term environmental and social goals.",
+        
+        # Extra long prompts (800-1024 tokens)
+        "Conduct a comprehensive analysis of the current state and future prospects of renewable energy technologies, examining the technical, economic, and policy factors that influence their adoption and deployment worldwide. Begin by discussing the fundamental principles behind different renewable energy sources including solar photovoltaic and thermal systems, wind turbines both onshore and offshore, hydroelectric power generation including pumped storage systems, geothermal energy extraction, and emerging technologies such as tidal and wave energy converters. Analyze the technological improvements that have led to significant cost reductions in renewable energy systems over the past decade, including advances in materials science, manufacturing processes, and system efficiency optimization. Examine the role of energy storage technologies, particularly battery systems, in addressing the intermittency challenges associated with renewable energy sources and enabling greater grid integration. Discuss the importance of smart grid technologies, demand response systems, and grid modernization efforts in accommodating higher penetrations of renewable energy. Consider the economic aspects of renewable energy deployment, including levelized cost of electricity calculations, financing mechanisms, government incentives and subsidies, and the impact on electricity markets and pricing structures. Analyze the policy frameworks and regulatory environments that support or hinder renewable energy development, including renewable portfolio standards, feed-in tariffs, carbon pricing mechanisms, and international climate agreements. Examine the social and environmental benefits of renewable energy adoption, including job creation, air quality improvements, and greenhouse gas emission reductions, while also addressing potential challenges such as land use requirements, visual impacts, and effects on local communities. Finally, explore future trends and emerging technologies in the renewable energy sector, including floating solar installations, advanced wind turbine designs, green hydrogen production, and the integration of artificial intelligence and machine learning in energy system optimization.",
+        "Explore the multifaceted relationship between artificial intelligence and human creativity, examining how AI technologies are transforming creative industries while raising fundamental questions about the nature of creativity, authorship, and artistic expression. Begin by analyzing the current applications of AI in various creative domains including music composition and production, visual arts and digital design, creative writing and content generation, film and video production, and interactive entertainment such as video games. Discuss the technical foundations of creative AI systems, including generative adversarial networks (GANs), variational autoencoders (VAEs), transformer-based language models, and reinforcement learning approaches that enable machines to produce novel and aesthetically pleasing content. Examine the collaborative potential between human creators and AI systems, exploring how artists, writers, musicians, and designers are incorporating AI tools into their creative workflows to enhance productivity, explore new artistic possibilities, and push the boundaries of traditional creative practices. Consider the philosophical and ethical implications of AI-generated content, including questions about intellectual property rights, the value and authenticity of machine-created art, and the potential impact on human creative professionals and cultural industries. Analyze the economic dimensions of AI in creativity, including new business models, market disruptions, and the democratization of creative tools that enable broader participation in creative activities. Discuss the challenges and limitations of current AI creative systems, such as the need for large training datasets, potential biases in generated content, and the difficulty of achieving true understanding and intentionality in creative expression. Examine case studies of successful AI-human creative collaborations and their reception by audiences and critics. Finally, speculate on the future evolution of AI creativity, considering emerging technologies, potential breakthroughs in artificial general intelligence, and the long-term implications for human culture and artistic expression."
     ]
 
 
 async def main():
     parser = argparse.ArgumentParser(description="Performance testing tool for vLLM MxExt")
-    parser.add_argument("--server-url", default="http://localhost:8000",
-                       help="Server URL (default: http://localhost:8000)")
+    parser.add_argument("--server-url", default="http://0.0.0.0:8000",
+                       help="Server URL (default: http://0.0.0.0:8000)")
     parser.add_argument("--model", required=True,
                        help="Model name to test")
     parser.add_argument("--prompts-file", 
                        help="File containing prompts (one per line)")
     parser.add_argument("--num-prompts", type=int, default=10,
-                       help="Number of default prompts to use (default: 10)")
+                       help="Number of default prompts to use when no prompts-file is specified (default: 10)")
+    parser.add_argument("--num-requests", type=int, 
+                       help="Total number of requests to send (overrides num-prompts)")
     parser.add_argument("--max-tokens", type=int, default=100,
                        help="Maximum tokens per response (default: 100)")
     parser.add_argument("--temperature", type=float, default=0.7,
@@ -405,13 +455,48 @@ async def main():
     if args.prompts_file:
         try:
             with open(args.prompts_file, 'r') as f:
-                prompts = [line.strip() for line in f if line.strip()]
+                file_prompts = [line.strip() for line in f if line.strip()]
+            
+            if not file_prompts:
+                logger.error(f"No valid prompts found in file: {args.prompts_file}")
+                return 1
+            
+            # Determine number of requests
+            if args.num_requests:
+                num_requests = args.num_requests
+            else:
+                num_requests = len(file_prompts)
+            
+            # Generate prompts based on num_requests
+            if num_requests <= len(file_prompts):
+                # Take first num_requests prompts
+                prompts = file_prompts[:num_requests]
+            else:
+                # Cycle through prompts to reach num_requests
+                prompts = []
+                for i in range(num_requests):
+                    prompts.append(file_prompts[i % len(file_prompts)])
+            
+            logger.info(f"Loaded {len(file_prompts)} prompts from file, using {len(prompts)} requests")
+            
         except Exception as e:
             logger.error(f"Failed to load prompts file: {e}")
             return 1
     else:
+        # Use default prompts
         default_prompts = get_default_prompts()
-        prompts = default_prompts[:args.num_prompts]
+        
+        if args.num_requests:
+            num_requests = args.num_requests
+            # Cycle through default prompts to reach num_requests
+            prompts = []
+            for i in range(num_requests):
+                prompts.append(default_prompts[i % len(default_prompts)])
+        else:
+            # Use num_prompts (legacy behavior)
+            prompts = default_prompts[:args.num_prompts]
+        
+        logger.info(f"Using {len(prompts)} default prompts")
     
     if not prompts:
         logger.error("No prompts to test")

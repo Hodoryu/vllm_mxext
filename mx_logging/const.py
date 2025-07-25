@@ -39,7 +39,7 @@ JSONL_LOGGING_CONFIG = {
     "disable_existing_loggers": False,
     "formatters": {
         VLLM_MXEXT_PACKAGE_NAME: {
-            "class": "vllm_mxext.logging.JsonFormatter",
+            "class": "vllm_mxext.mx_logging.JsonFormatter",
             "datefmt": _DATE_FORMAT,
             "format": _JSON_FORMAT,
         },

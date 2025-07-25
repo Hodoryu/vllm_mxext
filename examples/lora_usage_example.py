@@ -9,7 +9,7 @@ from typing import Dict, List
 class LoRAUsageExample:
     """Example class demonstrating LoRA usage."""
     
-    def __init__(self, server_url: str = "http://localhost:8000"):
+    def __init__(self, server_url: str = "http://0.0.0.0:8000"):
         self.server_url = server_url.rstrip('/')
     
     def load_lora_adapter(self, lora_name: str, lora_path: str) -> Dict:

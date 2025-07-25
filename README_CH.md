@@ -116,16 +116,16 @@ python scripts/start_with_lora.py --model /path/to/base/model --lora-config exam
 #### 基本健康检查
 ```bash
 # 检查服务器状态
-curl http://localhost:8000/health
+curl http://0.0.0.0:8000/health
 
 # 列出可用模型
-curl http://localhost:8000/v1/models
+curl http://0.0.0.0:8000/v1/models
 ```
 
 #### 基本推理测试
 ```bash
 # 测试聊天完成
-curl -X POST http://localhost:8000/v1/chat/completions \
+curl -X POST http://0.0.0.0:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "your_model_name",
@@ -135,7 +135,7 @@ curl -X POST http://localhost:8000/v1/chat/completions \
   }'
 
 # 测试文本完成
-curl -X POST http://localhost:8000/v1/completions \
+curl -X POST http://0.0.0.0:8000/v1/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "your_model_name",
@@ -181,7 +181,7 @@ auto_load:
 
 #### 加载LoRA适配器
 ```bash
-curl -X POST http://localhost:8000/v1/load_lora_adapter \
+curl -X POST http://0.0.0.0:8000/v1/load_lora_adapter \
   -H "Content-Type: application/json" \
   -d '{
     "lora_name": "math_tuned",
@@ -191,12 +191,12 @@ curl -X POST http://localhost:8000/v1/load_lora_adapter \
 
 #### 列出已加载的LoRA适配器
 ```bash
-curl http://localhost:8000/v1/lora_adapters
+curl http://0.0.0.0:8000/v1/lora_adapters
 ```
 
 #### 卸载LoRA适配器
 ```bash
-curl -X POST http://localhost:8000/v1/unload_lora_adapter \
+curl -X POST http://0.0.0.0:8000/v1/unload_lora_adapter \
   -H "Content-Type: application/json" \
   -d '{
     "lora_name": "math_tuned"
@@ -207,7 +207,7 @@ curl -X POST http://localhost:8000/v1/unload_lora_adapter \
 
 #### 使用LoRA进行聊天完成
 ```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
+curl -X POST http://0.0.0.0:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "base_model:math_tuned",
@@ -221,7 +221,7 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 
 #### 使用LoRA进行文本完成
 ```bash
-curl -X POST http://localhost:8000/v1/completions \
+curl -X POST http://0.0.0.0:8000/v1/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "base_model:code_tuned",
@@ -306,7 +306,7 @@ import requests
 import json
 
 class VllmMxextClient:
-    def __init__(self, base_url="http://localhost:8000"):
+    def __init__(self, base_url="http://0.0.0.0:8000"):
         self.base_url = base_url.rstrip('/')
     
     def load_lora(self, lora_name: str, lora_path: str):
@@ -430,10 +430,10 @@ export VLLM_MAX_LORAS=4
 #### API连接问题
 ```bash
 # 测试服务器连接
-curl http://localhost:8000/health
+curl http://0.0.0.0:8000/health
 
 # 检查LoRA端点是否可用
-curl http://localhost:8000/v1/lora_adapters
+curl http://0.0.0.0:8000/v1/lora_adapters
 ```
 
 ## 性能测试
@@ -497,7 +497,7 @@ python -m vllm_mxext.tools.performance_tester \
 ```yaml
 # performance_config.yaml
 server:
-  url: "http://localhost:8000"
+  url: "http://0.0.0.0:8000"
   model: "llama-2-7b-chat"
 
 test_params:
@@ -584,7 +584,7 @@ python -m vllm_mxext.tools.performance_tester --help
   --model MODEL            要测试的模型名称
 
 可选参数:
-  --server-url URL         服务器URL (默认: http://localhost:8000)
+  --server-url URL         服务器URL (默认: http://0.0.0.0:8000)
   --prompts-file FILE      包含提示词的文件 (每行一个)
   --num-prompts N          使用的默认提示词数量 (默认: 10)
   --max-tokens N           每个响应的最大token数 (默认: 100)

@@ -38,7 +38,7 @@ from os import path
 from typing import Any, Dict, List, Optional
 
 import vllm_mxext.envs as envs
-from vllm_mxext.logging.const import JSONL_LOGGING_CONFIG, READABLE_LOGGING_CONFIG, VLLM_MXEXT_PACKAGE_NAME
+from vllm_mxext.mx_logging.const import JSONL_LOGGING_CONFIG, READABLE_LOGGING_CONFIG, VLLM_MXEXT_PACKAGE_NAME
 
 
 VLLM_MXEXT_LOG_LEVEL = envs.VLLM_MXEXT_LOG_LEVEL

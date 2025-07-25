@@ -15,7 +15,7 @@ logger = init_logger(__name__)
 class LoRAManagerCLI:
     """Command-line interface for managing LoRA adapters."""
     
-    def __init__(self, server_url: str = "http://localhost:8000"):
+    def __init__(self, server_url: str = "http://0.0.0.0:8000"):
         self.server_url = server_url.rstrip('/')
     
     def load_lora(self, lora_name: str, lora_path: str) -> Dict:
@@ -79,8 +79,8 @@ class LoRAManagerCLI:
 
 def main():
     parser = argparse.ArgumentParser(description="LoRA Management CLI for vLLM MxExt")
-    parser.add_argument("--server-url", default="http://localhost:8000", 
-                       help="Server URL (default: http://localhost:8000)")
+    parser.add_argument("--server-url", default="http://0.0.0.0:8000", 
+                       help="Server URL (default: http://0.0.0.0:8000)")
     
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     

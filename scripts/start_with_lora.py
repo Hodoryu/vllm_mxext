@@ -63,8 +63,8 @@ if __name__ == "__main__":
     os.environ['VLLM_ALLOW_RUNTIME_LORA_UPDATING'] = 'true'
     
     print("✅ LoRA support enabled")
-    print("📊 Dashboard available at: http://localhost:8000/dashboard")
-    print("🔗 API server available at: http://localhost:8000")
+    print("📊 Dashboard available at: http://0.0.0.0:8000/dashboard")
+    print("🔗 API server available at: http://0.0.0.0:8000")
     print("🎯 LoRA management endpoints:")
     print("   - POST /v1/load_lora_adapter")
     print("   - POST /v1/unload_lora_adapter") 

@@ -1,11 +1,13 @@
 """Advanced metrics collection and analysis for the dashboard."""
 
-import asyncio
 import time
 from collections import deque
 from typing import Dict, List, Optional
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+
+from vllm_mxext.logger import init_logger
+
+logger = init_logger(__name__)
 
 @dataclass
 class TimeSeriesPoint:
@@ -42,13 +44,19 @@ class AdvancedMetricsCollector:
         self.buffers = {
             'cpu_usage': TimeSeriesBuffer(),
             'memory_usage': TimeSeriesBuffer(),
+            'disk_usage': TimeSeriesBuffer(),
+            'network_throughput': TimeSeriesBuffer(),
             'gpu_utilization': TimeSeriesBuffer(),
+            'gpu_memory_usage': TimeSeriesBuffer(),
+            'gpu_temperature': TimeSeriesBuffer(),
+            'gpu_power_usage': TimeSeriesBuffer(),
             'ttft': TimeSeriesBuffer(),
             'throughput': TimeSeriesBuffer(),
             'active_requests': TimeSeriesBuffer()
         }
     
     def record_metric(self, metric_name: str, value: float):
+        """Record a metric value with current timestamp."""
         if metric_name in self.buffers:
             self.buffers[metric_name].add_point(value)
     
@@ -77,7 +85,7 @@ class AdvancedMetricsCollector:
                     'max': max(values),
                     'avg': sum(values) / len(values),
                     'current': values[-1] if values else 0,
-                    'data_points': [(point.timestamp, point.value) for point in data_points]
+                    'data_points': [(point.timestamp, point.value) for point in data_points[-100:]]  # Last 100 points
                 }
             else:
                 result[metric_name] = {

@@ -12,12 +12,17 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from vllm_mxext.entrypoints.openai.api_server import main
+# 导入必要的函数
+from vllm_mxext.entrypoints.openai.api_server import run_server, complete_args_with_env_vars
+import uvloop
 
 if __name__ == "__main__":
     print("🚀 Starting vLLM MxExt with integrated monitoring dashboard...")
-    print("📊 Dashboard will be available at: http://localhost:8000/dashboard")
-    print("🔗 API server will be available at: http://localhost:8000")
+    print("📊 Dashboard will be available at: http://0.0.0.0:8000/dashboard")
+    print("🔗 API server will be available at: http://0.0.0.0:8000")
     
-    # 调用原始的main函数，仪表板会自动集成
-    main()
+    # 获取完整的参数配置
+    args = complete_args_with_env_vars()
+    
+    # 启动服务器
+    uvloop.run(run_server(args))
